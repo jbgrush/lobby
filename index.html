@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Lobby</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --navy:#0D1B2A;--navy-mid:#1A2E42;--navy-soft:#243447;
+  --gold:#B8953A;--gold-light:#E8D5A0;--gold-pale:#F9F4E8;
+  --cream:#FAFAF7;--white:#FFFFFF;
+  --ink:#0D1B2A;--ink-mid:#4A5568;--ink-faint:#9AA5B4;
+  --border:#E8E8E0;--border-dark:#D0C9B8;
+  --green:#2E7D52;--green-pale:#E8F5EE;
+  --red:#B03A2E;--red-pale:#FDECEA;
+  --amber:#C17F3B;
+}
+html,body{height:100%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;}
+.phone{width:390px;height:844px;background:var(--cream);border-radius:44px;overflow:hidden;position:relative;box-shadow:0 40px 120px rgba(0,0,0,0.5);display:flex;flex-direction:column;}
+@media(max-width:430px){
+  html,body{background:var(--cream);}
+  .phone{width:100%;height:100vh;border-radius:0;box-shadow:none;}
+}
+
+/* SCREENS */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--cream);transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;transform:translateX(100%);opacity:0;pointer-events:none;}
+.screen.active{transform:translateX(0);opacity:1;pointer-events:all;}
+.screen.back{transform:translateX(-30%);opacity:0;pointer-events:none;}
+
+/* AUTH */
+.auth-bg{flex:1;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;position:relative;overflow:hidden;}
+.auth-orb{position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(184,149,58,0.15) 0%,transparent 70%);top:-50px;right:-80px;}
+.auth-orb2{position:absolute;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(184,149,58,0.08) 0%,transparent 70%);bottom:60px;left:-60px;}
+.auth-logo{font-family:'Cormorant Garamond',serif;font-size:52px;color:#fff;letter-spacing:4px;font-weight:500;margin-bottom:8px;}
+.auth-logo span{color:var(--gold);}
+.auth-tagline{font-size:13px;color:rgba(255,255,255,0.45);letter-spacing:1px;text-transform:uppercase;margin-bottom:56px;}
+.auth-form{width:100%;display:flex;flex-direction:column;gap:12px;}
+.auth-input{width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:14px 18px;font-size:15px;font-family:'Inter',sans-serif;color:#fff;outline:none;transition:border-color .2s;}
+.auth-input::placeholder{color:rgba(255,255,255,0.3);}
+.auth-input:focus{border-color:var(--gold);}
+.auth-btn{width:100%;background:var(--gold);color:var(--navy);border:none;border-radius:14px;padding:16px;font-size:15px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;margin-top:4px;letter-spacing:0.3px;transition:opacity .2s;}
+.auth-btn:active{opacity:0.85;}
+.auth-switch{font-size:13px;color:rgba(255,255,255,0.4);margin-top:16px;text-align:center;cursor:pointer;}
+.auth-switch span{color:var(--gold);}
+
+/* HEADER */
+.hdr{background:var(--navy);padding:52px 20px 0;flex-shrink:0;}
+.hdr-safe{padding-top:0;}
+.hdr-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.logo{font-family:'Cormorant Garamond',serif;font-size:24px;color:#fff;letter-spacing:2px;font-weight:500;}
+.logo-dot{color:var(--gold);}
+.hdr-label{font-size:11px;font-weight:500;color:rgba(255,255,255,0.45);letter-spacing:.6px;text-transform:uppercase;}
+.hdr-right{display:flex;align-items:center;gap:10px;}
+.avi{width:32px;height:32px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--navy);cursor:pointer;border:1.5px solid var(--gold-light);flex-shrink:0;}
+
+/* BACK HEADER */
+.back-hdr{background:var(--navy);padding:52px 20px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+.back-btn{font-size:13px;color:var(--gold);cursor:pointer;font-weight:500;padding:4px 0;}
+.back-title{font-family:'Cormorant Garamond',serif;font-size:20px;color:#fff;}
+
+/* SCROLL */
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.scroll::-webkit-scrollbar{display:none;}
+
+/* BOTTOM NAV */
+.bnav{background:var(--white);border-top:1px solid var(--border);display:flex;padding:10px 0;padding-bottom:max(10px,env(safe-area-inset-bottom));flex-shrink:0;}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;border:none;background:transparent;transition:opacity .15s;}
+.nb:active{opacity:0.6;}
+.nb svg{width:20px;height:20px;}
+.nb svg *{stroke:var(--ink-faint);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+.nb.active svg *{stroke:var(--gold);}
+.nb-l{font-size:9px;color:var(--ink-faint);font-weight:500;letter-spacing:.4px;text-transform:uppercase;}
+.nb.active .nb-l{color:var(--gold);}
+
+/* FEED */
+.feed{padding:14px 16px;display:flex;flex-direction:column;gap:14px;}
+.notice{background:var(--navy);border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:10px;font-size:12px;color:rgba(255,255,255,.8);}
+.astack{display:flex;}
+.axs{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:500;flex-shrink:0;}
+.astack .axs{margin-left:-5px;border:1.5px solid var(--navy);}
+.astack .axs:first-child{margin-left:0;}
+
+/* HOTEL CARD */
+.fcard{background:var(--white);border-radius:18px;border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:transform .15s;}
+.fcard:active{transform:scale(0.98);}
+.fcard-hero{height:175px;position:relative;display:flex;align-items:flex-end;}
+.hero-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;opacity:0.15;}
+.hero-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(13,27,42,.8) 0%,transparent 55%);}
+.hero-info{position:relative;padding:12px 14px;z-index:1;width:100%;}
+.hero-name{font-family:'Cormorant Garamond',serif;font-size:18px;color:#fff;font-weight:500;line-height:1.2;}
+.hero-loc{font-size:11px;color:rgba(255,255,255,.65);margin-top:2px;}
+.score-pill{position:absolute;top:12px;right:12px;background:var(--gold);border-radius:20px;padding:4px 12px;font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;color:var(--navy);z-index:1;}
+.type-pill{position:absolute;top:12px;left:12px;background:rgba(13,27,42,.6);border-radius:20px;padding:3px 10px;font-size:10px;color:rgba(255,255,255,.9);letter-spacing:.4px;text-transform:uppercase;backdrop-filter:blur(4px);z-index:1;}
+.mini-cats{padding:10px 14px;display:flex;gap:6px;overflow-x:auto;border-top:1px solid var(--border);}
+.mini-cats::-webkit-scrollbar{display:none;}
+.mini-cat{flex-shrink:0;background:var(--cream);border-radius:10px;padding:6px 10px;text-align:center;min-width:52px;}
+.mc-lbl{font-size:9px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.4px;}
+.mc-val{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;margin-top:1px;}
+.mc-val.hi{color:var(--green);}
+.mc-val.mid{color:var(--amber);}
+.mc-val.lo{color:var(--red);}
+.fcard-footer{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:6px;}
+.gold-link{font-size:11px;color:var(--gold);}
+
+/* HOTEL PROFILE */
+.hotel-hero{height:220px;position:relative;display:flex;align-items:flex-end;flex-shrink:0;}
+.hotel-hero-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:100px;opacity:0.18;}
+.hotel-hero-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(13,27,42,.88) 0%,transparent 50%);}
+.hotel-hero-info{position:relative;padding:16px 18px;z-index:1;width:100%;}
+.hotel-name{font-family:'Cormorant Garamond',serif;font-size:22px;color:#fff;font-weight:500;}
+.hotel-loc{font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;}
+.hotel-back{position:absolute;top:60px;left:16px;background:rgba(13,27,42,.5);border-radius:20px;padding:5px 12px;font-size:12px;color:#fff;cursor:pointer;backdrop-filter:blur(4px);z-index:2;}
+.hotel-score-wrap{position:absolute;top:56px;right:16px;text-align:right;z-index:2;}
+.hotel-score-num{font-family:'Cormorant Garamond',serif;font-size:44px;color:var(--gold);font-weight:600;line-height:1;}
+.hotel-score-sub{font-size:10px;color:rgba(255,255,255,.4);text-align:right;margin-top:2px;}
+.hotel-type-badge{display:inline-block;margin-top:6px;font-size:10px;padding:3px 10px;border-radius:20px;background:var(--gold-pale);color:var(--gold);border:1px solid var(--gold-light);letter-spacing:.3px;text-transform:uppercase;}
+.book-btn{display:block;margin:0 18px;background:var(--gold);color:var(--navy);border:none;border-radius:13px;padding:14px;font-size:14px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;width:calc(100% - 36px);text-align:center;text-decoration:none;transition:opacity .2s;}
+.book-btn:active{opacity:0.85;}
+
+.section-h{font-size:10px;font-weight:500;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.7px;padding:14px 18px 8px;}
+.cat-list{background:var(--white);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.cat-row{display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid var(--border);}
+.cat-row:last-child{border-bottom:none;}
+.cat-lbl{font-size:13px;color:var(--ink-mid);width:76px;flex-shrink:0;}
+.cat-bar-wrap{flex:1;height:8px;background:var(--border);border-radius:4px;margin:0 12px;}
+.cat-bar{height:8px;border-radius:4px;transition:width .6s ease;}
+.cat-num{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;width:32px;text-align:right;}
+
+.verdict-wrap{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px;}
+.verdict-card{border-radius:12px;padding:10px 12px;}
+.verdict-card.good{background:var(--green-pale);}
+.verdict-card.bad{background:var(--red-pale);}
+.verdict-head{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.verdict-head.good{color:var(--green);}
+.verdict-head.bad{color:var(--red);}
+.verdict-item{font-size:12px;color:var(--ink-mid);margin-bottom:3px;}
+
+.friend-list{background:var(--white);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.fr-row{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--border);}
+.fr-row:last-child{border-bottom:none;}
+.fr-left{display:flex;align-items:center;gap:8px;}
+.fr-name{font-size:13px;color:var(--ink);}
+.fr-date{font-size:10px;color:var(--ink-faint);}
+.fr-score{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold);font-weight:600;}
+
+/* LOG */
+.log-progress{height:3px;background:var(--border);flex-shrink:0;}
+.log-progress-fill{height:3px;background:var(--gold);transition:width .3s ease;}
+.log-scroll{flex:1;overflow-y:auto;padding:20px 18px;}
+.log-scroll::-webkit-scrollbar{display:none;}
+.step{display:none;}
+.step.active{display:block;}
+.field-label{font-size:10px;font-weight:500;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;}
+.log-input{width:100%;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:14px;font-family:'Inter',sans-serif;color:var(--navy);outline:none;margin-bottom:16px;transition:border-color .2s;}
+.log-input:focus{border-color:var(--gold);}
+.log-input::placeholder{color:var(--ink-faint);}
+.type-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+.type-opt{font-size:13px;padding:8px 16px;border-radius:20px;border:1px solid var(--border);background:var(--white);color:var(--ink-mid);cursor:pointer;transition:all .15s;}
+.type-opt.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.avg-box{background:var(--navy);border-radius:14px;padding:16px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;}
+.avg-label{font-size:12px;color:rgba(255,255,255,.6);}
+.avg-num{font-family:'Cormorant Garamond',serif;font-size:38px;color:var(--gold);font-weight:600;}
+.cat-rate{margin-bottom:20px;}
+.cat-rate-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.cat-rate-label{font-size:14px;color:var(--ink);}
+.cat-rate-val{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--navy);}
+input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer;}
+.range-ends{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-faint);margin-top:3px;}
+.tags-grid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;}
+.tag-opt{font-size:12px;padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--white);color:var(--ink-mid);cursor:pointer;transition:all .15s;}
+.tag-opt.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.next-btn{width:100%;background:var(--navy);color:#fff;border:none;border-radius:13px;padding:15px;font-size:14px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;margin-top:6px;transition:opacity .2s;}
+.next-btn:active{opacity:0.85;}
+.save-btn{width:100%;background:var(--gold);color:var(--navy);border:none;border-radius:13px;padding:15px;font-size:14px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;margin-top:6px;transition:opacity .2s;}
+.save-btn:active{opacity:0.85;}
+
+/* NEARBY MAP */
+.map-wrap{flex:1;background:#C8D8E8;position:relative;overflow:hidden;}
+.map-svg{position:absolute;top:0;left:0;width:100%;height:100%;}
+.map-hint{background:var(--white);padding:9px 18px;font-size:11px;color:var(--ink-faint);border-top:1px solid var(--border);flex-shrink:0;letter-spacing:.2px;}
+
+/* SLIDE CARD */
+.slide-card{position:absolute;bottom:0;left:0;right:0;background:var(--white);border-radius:20px 20px 0 0;border-top:1px solid var(--border);padding:0 18px 20px;transform:translateY(110%);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:20;}
+.slide-card.open{transform:translateY(0);}
+.sh{width:40px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 14px;}
+.sl-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.sl-emoji-box{width:50px;height:50px;background:var(--gold-pale);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.sl-info{flex:1;margin-left:11px;}
+.sl-name{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--navy);line-height:1.2;}
+.sl-loc{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+.sl-score{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold);font-weight:600;}
+.sl-rank{font-size:10px;color:var(--ink-faint);}
+.sl-cats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px;}
+.sl-cat{background:var(--cream);border-radius:10px;padding:7px 8px;text-align:center;}
+.sl-cat-l{font-size:9px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.4px;}
+.sl-cat-v{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;margin-top:2px;}
+.view-btn{width:100%;background:var(--navy);color:#fff;border:none;border-radius:12px;padding:13px;font-size:13px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;transition:opacity .2s;}
+.view-btn:active{opacity:0.85;}
+
+/* PASSPORT */
+.pp-hero{background:var(--navy);padding:52px 20px 18px;flex-shrink:0;text-align:center;}
+.pp-avi-lg{width:64px;height:64px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:500;color:var(--navy);margin:0 auto 10px;border:2px solid var(--gold-light);}
+.pp-name{font-family:'Cormorant Garamond',serif;font-size:22px;color:#fff;}
+.pp-sub{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+.tier-badge{display:inline-block;margin-top:8px;font-size:11px;padding:4px 14px;border-radius:20px;background:var(--gold);color:var(--navy);font-weight:500;letter-spacing:.3px;}
+.pp-stats{display:flex;border-top:1px solid rgba(255,255,255,.1);margin-top:14px;padding-top:14px;}
+.pp-stat{flex:1;text-align:center;border-right:1px solid rgba(255,255,255,.1);}
+.pp-stat:last-child{border-right:none;}
+.pp-stat-n{font-family:'Cormorant Garamond',serif;font-size:20px;color:#fff;}
+.pp-stat-l{font-size:9px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-top:1px;}
+
+.vtabs{display:flex;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0;}
+.vt{flex:1;text-align:center;padding:11px 0;font-size:10px;font-weight:500;color:var(--ink-faint);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.4px;text-transform:uppercase;transition:color .15s;}
+.vt.active{color:var(--navy);border-bottom-color:var(--gold);}
+
+.rrow{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--white);transition:background .15s;}
+.rrow:active{background:var(--cream);}
+.rrow:last-child{border-bottom:none;}
+.rnum{font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--ink-faint);width:18px;text-align:center;flex-shrink:0;}
+.rnum.top{color:var(--gold);}
+.remoji{width:42px;height:42px;border-radius:11px;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.rinfo{flex:1;}
+.rname{font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--navy);}
+.rloc{font-size:10px;color:var(--ink-faint);margin-top:1px;}
+.rscore{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);}
+
+.tier-card{margin:14px 16px 0;background:var(--navy);border-radius:16px;padding:16px;display:flex;align-items:center;justify-content:space-between;}
+.tier-progress-bg{height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin-top:10px;}
+.tier-progress-fill{height:4px;background:var(--gold);border-radius:2px;width:40%;}
+
+/* DISCOVER */
+.search-bar{padding:12px 16px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0;}
+.search-inner{display:flex;align-items:center;gap:10px;background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:10px 14px;}
+.search-inner input{flex:1;background:transparent;border:none;outline:none;font-size:13px;font-family:'Inter',sans-serif;color:var(--navy);}
+.search-inner input::placeholder{color:var(--ink-faint);}
+.disc-section{font-size:10px;font-weight:500;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.7px;padding:12px 18px 6px;}
+
+/* TOAST */
+.toast{position:absolute;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:100;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* DISCOVER FILTER CHIPS */
+.filter-row{display:flex;gap:8px;padding:10px 16px;overflow-x:auto;flex-shrink:0;}
+.filter-row::-webkit-scrollbar{display:none;}
+.fc{white-space:nowrap;font-size:12px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--white);color:var(--ink-mid);cursor:pointer;transition:all .15s;}
+.fc.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+</style>
+</head>
+<body>
+<div class="phone" id="app">
+
+  <!-- ══ AUTH ══ -->
+  <div class="screen active" id="s-auth">
+    <div class="auth-bg">
+      <div class="auth-orb"></div>
+      <div class="auth-orb2"></div>
+      <div class="auth-logo">LOBBY<span>.</span></div>
+      <div class="auth-tagline">Your hotel, ranked</div>
+      <div class="auth-form">
+        <div id="auth-name-wrap"><input class="auth-input" id="auth-name" placeholder="Full name" type="text"/></div>
+        <input class="auth-input" id="auth-email" placeholder="Email address" type="email"/>
+        <input class="auth-input" id="auth-pass" placeholder="Password" type="password"/>
+        <button class="auth-btn" id="auth-submit" onclick="handleAuth()">Create account</button>
+        <div class="auth-switch" id="auth-switch" onclick="toggleAuth()">Already have an account? <span>Sign in</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ FEED ══ -->
+  <div class="screen" id="s-feed">
+    <div class="hdr hdr-safe">
+      <div class="hdr-row">
+        <span class="logo">LOBBY<span class="logo-dot">.</span></span>
+        <div class="hdr-right">
+          <span class="hdr-label">Friends</span>
+          <div class="avi" id="feed-avi" onclick="navTo('passport')">JK</div>
+        </div>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="feed" id="feed-content"></div>
+    </div>
+    <div class="bnav">
+      <button class="nb active" id="nb-feed" onclick="navTo('feed')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span class="nb-l">Friends</span>
+      </button>
+      <button class="nb" id="nb-nearby" onclick="navTo('nearby')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 1 8 8c0 5.25-8 13-8 13S4 15.25 4 10a8 8 0 0 1 8-8z"/></svg>
+        <span class="nb-l">Nearby</span>
+      </button>
+      <button class="nb" id="nb-log" onclick="navTo('log')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span class="nb-l">Log</span>
+      </button>
+      <button class="nb" id="nb-discover" onclick="navTo('discover')">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="nb-l">Discover</span>
+      </button>
+      <button class="nb" id="nb-passport" onclick="navTo('passport')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 8h2M15 12h2M15 16h2"/></svg>
+        <span class="nb-l">Passport</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ HOTEL PROFILE ══ -->
+  <div class="screen" id="s-hotel">
+    <div style="flex-shrink:0;position:relative;">
+      <div class="hotel-hero" id="hotel-hero-wrap" style="background:#1A3A5C;">
+        <div class="hotel-hero-bg" id="hotel-hero-emoji">🏨</div>
+        <div class="hotel-hero-grad"></div>
+        <div class="hotel-back" onclick="goBack()">← Back</div>
+        <div class="hotel-score-wrap">
+          <div class="hotel-score-num" id="hotel-score">9.2</div>
+          <div class="hotel-score-sub">avg of 6 categories</div>
+        </div>
+        <div class="hotel-hero-info">
+          <div class="hotel-name" id="hotel-name">The Setai Miami Beach</div>
+          <div class="hotel-loc" id="hotel-loc">2001 Collins Ave, Miami Beach, FL</div>
+          <span class="hotel-type-badge" id="hotel-type">5-Star Hotel</span>
+        </div>
+      </div>
+    </div>
+    <div class="scroll">
+      <div style="padding:14px 0 0;">
+        <a class="book-btn" id="hotel-book-btn" href="#" target="_blank" onclick="trackBooking()">Book this hotel →</a>
+      </div>
+      <div class="section-h">Average ratings by category</div>
+      <div class="cat-list" id="hotel-cats"></div>
+      <div class="section-h">What guests say</div>
+      <div class="verdict-wrap" id="hotel-verdict"></div>
+      <div class="section-h">Friend ratings</div>
+      <div class="friend-list" id="hotel-friends"></div>
+      <div style="height:24px;"></div>
+    </div>
+  </div>
+
+  <!-- ══ LOG ══ -->
+  <div class="screen" id="s-log">
+    <div class="back-hdr">
+      <span class="back-btn" id="log-back" onclick="logBack()">← Back</span>
+      <span class="back-title" id="log-title-el">Find hotel</span>
+      <span style="font-size:11px;color:rgba(255,255,255,.4);" id="log-step-lbl">1 of 3</span>
+    </div>
+    <div class="log-progress"><div class="log-progress-fill" id="log-prog" style="width:33%;"></div></div>
+    <div class="log-scroll">
+      <!-- STEP 1 -->
+      <div class="step active" id="log-s1">
+        <div class="field-label">Search hotel</div>
+        <input class="log-input" id="log-hotel-input" placeholder="Hotel name or city..."/>
+        <div id="log-search-results" style="margin-bottom:14px;"></div>
+        <div class="field-label">Hotel type</div>
+        <div class="type-grid" id="log-type-grid">
+          <div class="type-opt on" onclick="selType(this)">Hotel</div>
+          <div class="type-opt" onclick="selType(this)">Resort</div>
+          <div class="type-opt" onclick="selType(this)">Boutique</div>
+          <div class="type-opt" onclick="selType(this)">Motel</div>
+        </div>
+        <button class="next-btn" onclick="logNext()">Next — Rate categories →</button>
+      </div>
+      <!-- STEP 2 -->
+      <div class="step" id="log-s2">
+        <div class="avg-box">
+          <div class="avg-label">Your average score</div>
+          <div class="avg-num" id="log-avg">5.0</div>
+        </div>
+        <div class="cat-rate" id="cr-location">
+          <div class="cat-rate-top"><span class="cat-rate-label">Location</span><span class="cat-rate-val" id="cv-location">5.0</span></div>
+          <input type="range" min="1" max="10" step="0.5" value="5" oninput="updateCat('location',this.value)"/>
+          <div class="range-ends"><span>1 · terrible</span><span>10 · perfect</span></div>
+        </div>
+        <div class="cat-rate">
+          <div class="cat-rate-top"><span class="cat-rate-label">Service</span><span class="cat-rate-val" id="cv-service">5.0</span></div>
+          <input type="range" min="1" max="10" step="0.5" value="5" oninput="updateCat('service',this.value)"/>
+          <div class="range-ends"><span>1 · terrible</span><span>10 · perfect</span></div>
+        </div>
+        <div class="cat-rate">
+          <div class="cat-rate-top"><span class="cat-rate-label">Rooms</span><span class="cat-rate-val" id="cv-rooms">5.0</span></div>
+          <input type="range" min="1" max="10" step="0.5" value="5" oninput="updateCat('rooms',this.value)"/>
+          <div class="range-ends"><span>1 · terrible</span><span>10 · perfect</span></div>
+        </div>
+        <div class="cat-rate">
+          <div class="cat-rate-top"><span class="cat-rate-label">Pool</span><span class="cat-rate-val" id="cv-pool">5.0</span></div>
+          <input type="range" min="1" max="10" step="0.5" value="5" oninput="updateCat('pool',this.value)"/>
+          <div class="range-ends"><span>1 · terrible</span><span>10 · perfect</span></div>
+        </div>
+        <div class="cat-rate">
+          <div class="cat-rate-top"><span class="cat-rate-label">Food</span><span class="cat-rate-val" id="cv-food">5.0</span></div>
+          <input type="range" min="1" max="10" step="0.5" value="5" oninput="updateCat('food',this.value)"/>
+          <div class="range-ends"><span>1 · terrible</span><span>10 · perfect</span></div>
+        </div>
+        <div class="cat-rate">
+          <div class="cat-rate-top"><span class="cat-rate-label">Value</span><span class="cat-rate-val" id="cv-value">5.0</span></div>
+          <input type="range" min="1" max="10" step="0.5" value="5" oninput="updateCat('value',this.value)"/>
+          <div class="range-ends"><span>1 · terrible</span><span>10 · perfect</span></div>
+        </div>
+        <button class="next-btn" style="margin-top:16px;" onclick="logNext()">Next — Add highlights →</button>
+      </div>
+      <!-- STEP 3 -->
+      <div class="step" id="log-s3">
+        <div class="avg-box">
+          <div class="avg-label">Your overall score</div>
+          <div class="avg-num" id="log-avg-final">5.0</div>
+        </div>
+        <div class="field-label">Highlights</div>
+        <div class="tags-grid">
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Pool</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Beachfront</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Views</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Service</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Location</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Vibe</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Spa</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Food</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Romantic</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Family</div>
+          <div class="tag-opt" onclick="this.classList.toggle('on')">Business</div>
+        </div>
+        <div class="field-label">Quick note (optional)</div>
+        <textarea class="log-input" id="log-note" placeholder="What stood out most?" style="height:80px;resize:none;line-height:1.5;"></textarea>
+        <button class="save-btn" onclick="saveStay()">Save to Passport ✓</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ NEARBY ══ -->
+  <div class="screen" id="s-nearby">
+    <div class="hdr hdr-safe">
+      <div class="hdr-row">
+        <span class="logo">LOBBY<span class="logo-dot">.</span></span>
+        <div class="hdr-right"><span class="hdr-label">Nearby</span><div class="avi" onclick="navTo('passport')">JK</div></div>
+      </div>
+    </div>
+    <div class="map-wrap">
+      <div id="nearby-map-container" style="width:100%;height:100%;position:relative;background:#C8D8E8;">
+        <div id="nearby-loading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#C8D8E8;z-index:5;">
+          <div style="font-size:28px;margin-bottom:12px;">📍</div>
+          <div style="font-size:14px;font-weight:500;color:var(--navy);">Finding your location...</div>
+          <div style="font-size:12px;color:var(--ink-faint);margin-top:6px;">Please allow location access</div>
+        </div>
+        <div id="nearby-error" style="position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:#C8D8E8;z-index:5;padding:24px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:12px;">🗺️</div>
+          <div style="font-size:14px;font-weight:500;color:var(--navy);">Location access needed</div>
+          <div style="font-size:12px;color:var(--ink-faint);margin-top:6px;line-height:1.5;">Enable location in your browser settings to see hotels near you</div>
+          <button onclick="initNearby()" style="margin-top:16px;background:var(--navy);color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:13px;font-family:Inter,sans-serif;cursor:pointer;">Try again</button>
+        </div>
+        <div id="nearby-map" style="width:100%;height:100%;position:relative;overflow:hidden;"></div>
+        <div id="nearby-pins-layer" style="position:absolute;inset:0;pointer-events:none;"></div>
+      </div>
+      <div class="slide-card" id="nearby-slide">
+        <div class="sh"></div>
+        <div class="sl-header">
+          <div class="sl-emoji-box" id="ns-emoji">🏨</div>
+          <div class="sl-info"><div class="sl-name" id="ns-name">Hotel</div><div class="sl-loc" id="ns-loc">Location</div></div>
+          <div style="text-align:right;"><div class="sl-score" id="ns-score">9.0</div><div class="sl-rank" id="ns-dist">0.3 mi</div></div>
+        </div>
+        <div class="sl-cats" id="ns-cats"></div>
+        <button class="view-btn" id="ns-view-btn" onclick="openNearbyHotel()">View hotel profile →</button>
+      </div>
+    </div>
+    <div class="map-hint">Tap a pin · large = highest rated · gold = Lobby rated</div>
+    <div class="bnav">
+      <button class="nb" id="nb2-feed" onclick="navTo('feed')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="nb-l">Friends</span></button>
+      <button class="nb active" id="nb2-nearby"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 1 8 8c0 5.25-8 13-8 13S4 15.25 4 10a8 8 0 0 1 8-8z"/></svg><span class="nb-l">Nearby</span></button>
+      <button class="nb" id="nb2-log" onclick="navTo('log')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span class="nb-l">Log</span></button>
+      <button class="nb" id="nb2-discover" onclick="navTo('discover')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="nb-l">Discover</span></button>
+      <button class="nb" id="nb2-passport" onclick="navTo('passport')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 8h2M15 12h2M15 16h2"/></svg><span class="nb-l">Passport</span></button>
+    </div>
+  </div>
+
+  <!-- ══ DISCOVER ══ -->
+  <div class="screen" id="s-discover">
+    <div class="hdr hdr-safe">
+      <div class="hdr-row">
+        <span class="logo">LOBBY<span class="logo-dot">.</span></span>
+        <div class="hdr-right"><span class="hdr-label">Discover</span><div class="avi" onclick="navTo('passport')">JK</div></div>
+      </div>
+    </div>
+    <div class="search-bar">
+      <div class="search-inner">
+        <svg width="14" height="14" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke="var(--ink-faint)" fill="none" stroke-width="1.5" stroke-linecap="round"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke="var(--ink-faint)" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input placeholder="Hotel name or city..." id="disc-search" oninput="filterDiscover(this.value)"/>
+      </div>
+    </div>
+    <div class="filter-row">
+      <div class="fc on" onclick="filterCat(this,'all')">All</div>
+      <div class="fc" onclick="filterCat(this,'hotel')">Hotels</div>
+      <div class="fc" onclick="filterCat(this,'resort')">Resorts</div>
+      <div class="fc" onclick="filterCat(this,'boutique')">Boutique</div>
+      <div class="fc" onclick="filterCat(this,'friends')">Friends been</div>
+    </div>
+    <div class="scroll">
+      <div class="feed" id="discover-content"></div>
+    </div>
+    <div class="bnav">
+      <button class="nb" id="nb3-feed" onclick="navTo('feed')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="nb-l">Friends</span></button>
+      <button class="nb" id="nb3-nearby" onclick="navTo('nearby')"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 1 8 8c0 5.25-8 13-8 13S4 15.25 4 10a8 8 0 0 1 8-8z"/></svg><span class="nb-l">Nearby</span></button>
+      <button class="nb" id="nb3-log" onclick="navTo('log')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span class="nb-l">Log</span></button>
+      <button class="nb active" id="nb3-discover"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="nb-l">Discover</span></button>
+      <button class="nb" id="nb3-passport" onclick="navTo('passport')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 8h2M15 12h2M15 16h2"/></svg><span class="nb-l">Passport</span></button>
+    </div>
+  </div>
+
+  <!-- ══ PASSPORT ══ -->
+  <div class="screen" id="s-passport">
+    <div class="pp-hero">
+      <div class="pp-avi-lg" id="pp-avi">JK</div>
+      <div class="pp-name" id="pp-name-el">Jackson K.</div>
+      <div class="pp-sub" id="pp-sub">Greenacres, FL · #342 globally</div>
+      <div><span class="tier-badge" id="pp-tier">🥈 Silver Traveler</span></div>
+      <div class="pp-stats">
+        <div class="pp-stat"><div class="pp-stat-n" id="pp-stays">0</div><div class="pp-stat-l">Stays</div></div>
+        <div class="pp-stat"><div class="pp-stat-n" id="pp-countries">0</div><div class="pp-stat-l">Countries</div></div>
+        <div class="pp-stat"><div class="pp-stat-n" id="pp-friends">24</div><div class="pp-stat-l">Friends</div></div>
+        <div class="pp-stat"><div class="pp-stat-n" id="pp-continents">0</div><div class="pp-stat-l">Continents</div></div>
+      </div>
+    </div>
+    <div class="vtabs">
+      <div class="vt active" id="vt-map" onclick="showPPView('map')">Map</div>
+      <div class="vt" id="vt-ranked" onclick="showPPView('ranked')">Ranked</div>
+      <div class="vt" id="vt-profile" onclick="showPPView('profile')">Profile</div>
+    </div>
+
+    <!-- MAP VIEW -->
+    <div id="pv-map" style="flex:1;background:#C8D8E8;position:relative;overflow:hidden;display:flex;flex-direction:column;">
+      <div style="flex:1;position:relative;">
+        <div id="pp-world-map" style="width:100%;height:100%;position:absolute;top:0;left:0;"></div>
+        <svg id="pp-pins-svg" width="100%" height="100%" style="position:absolute;top:0;left:0;pointer-events:none;" xmlns="http://www.w3.org/2000/svg">
+          <g id="pp-pins"></g>
+        </svg>
+        <div class="slide-card" id="pp-slide">
+          <div class="sh"></div>
+          <div class="sl-header">
+            <div class="sl-emoji-box" id="pp-s-emoji">🏨</div>
+            <div class="sl-info"><div class="sl-name" id="pp-s-name">Hotel</div><div class="sl-loc" id="pp-s-loc">Location</div></div>
+            <div style="text-align:right;"><div class="sl-score" id="pp-s-score">9.0</div><div class="sl-rank" id="pp-s-rank">#1 stay</div></div>
+          </div>
+          <div class="sl-cats" id="pp-s-cats"></div>
+          <button class="view-btn" onclick="openHotelFromPP()">View hotel profile →</button>
+        </div>
+      </div>
+      <div style="padding:8px 18px 6px;background:var(--cream);font-size:10px;color:var(--ink-faint);flex-shrink:0;">Tap a pin · large = your #1 stay</div>
+    </div>
+
+    <!-- RANKED VIEW -->
+    <div id="pv-ranked" style="flex:1;overflow-y:auto;display:none;background:var(--cream);">
+      <div style="padding:10px 18px 4px;font-size:10px;font-weight:500;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.7px;">Ranked by average score</div>
+      <div id="ranked-list" style="background:var(--white);border-top:1px solid var(--border);"></div>
+    </div>
+
+    <!-- PROFILE VIEW -->
+    <div id="pv-profile" style="flex:1;overflow-y:auto;display:none;background:var(--cream);">
+      <div class="tier-card">
+        <div style="flex:1;">
+          <div style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:4px;">Traveler tier</div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);" id="tier-name-big">Silver</div>
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:2px;" id="tier-sub-text">8 more stays to reach Gold</div>
+          <div class="tier-progress-bg"><div class="tier-progress-fill" id="tier-prog-fill"></div></div>
+        </div>
+        <div style="font-size:42px;margin-left:14px;" id="tier-emoji-big">🥈</div>
+      </div>
+      <div class="section-h">Your average category scores</div>
+      <div style="background:var(--white);border-top:1px solid var(--border);border-bottom:1px solid var(--border);" id="profile-avg-cats"></div>
+      <div class="section-h">Countries visited</div>
+      <div style="padding:4px 16px 20px;display:flex;flex-wrap:wrap;gap:7px;" id="pp-countries-list"></div>
+    </div>
+
+    <div class="bnav">
+      <button class="nb" id="nb4-feed" onclick="navTo('feed')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="nb-l">Friends</span></button>
+      <button class="nb" id="nb4-nearby" onclick="navTo('nearby')"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 1 8 8c0 5.25-8 13-8 13S4 15.25 4 10a8 8 0 0 1 8-8z"/></svg><span class="nb-l">Nearby</span></button>
+      <button class="nb" id="nb4-log" onclick="navTo('log')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span class="nb-l">Log</span></button>
+      <button class="nb" id="nb4-discover" onclick="navTo('discover')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="nb-l">Discover</span></button>
+      <button class="nb active" id="nb4-passport"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 8h2M15 12h2M15 16h2"/></svg><span class="nb-l">Passport</span></button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// DATA
+// ══════════════════════════════════════
+const CATS = ['location','service','rooms','pool','food','value'];
+const CAT_LABELS = {location:'Location',service:'Service',rooms:'Rooms',pool:'Pool',food:'Food',value:'Value'};
+
+const HOTELS = [
+  {id:1,name:'The Setai Miami Beach',loc:'Miami Beach, Florida',addr:'2001 Collins Ave, Miami Beach, FL',type:'Hotel',emoji:'🏨',heroBg:'#1A3A5C',cats:{location:9.5,service:9.3,rooms:9.0,pool:9.8,food:7.8,value:6.2},good:['Pool & beach','Service','Location'],bad:['Value for money','Restaurant food'],bookUrl:'https://booking.com/hotel/us/the-setai.html',friendsBeen:true,mapCoords:{x:72,y:138}},
+  {id:2,name:'Four Seasons Palm Beach',loc:'Palm Beach, Florida',addr:'2800 S Ocean Blvd, Palm Beach, FL',type:'Resort',emoji:'🌴',heroBg:'#2A3A1A',cats:{location:9.1,service:8.8,rooms:7.9,pool:8.6,food:8.2,value:6.1},good:['Location','Service','Food'],bad:['Value for money','Dated rooms'],bookUrl:'https://booking.com/hotel/us/four-seasons-palm-beach.html',friendsBeen:true,mapCoords:{x:245,y:310}},
+  {id:3,name:'Park Hyatt New York',loc:'Midtown, New York',addr:'153 W 57th St, New York, NY',type:'Hotel',emoji:'🏙️',heroBg:'#2A1A3A',cats:{location:9.7,service:9.5,rooms:9.8,pool:7.5,food:9.1,value:6.4},good:['Rooms','Service','Location'],bad:['Value for money','Pool'],bookUrl:'https://booking.com/hotel/us/park-hyatt-new-york.html',friendsBeen:true,mapCoords:{x:88,y:118}},
+  {id:4,name:'Amangiri',loc:'Canyon Point, Utah',addr:'1 Kayenta Rd, Canyon Point, UT',type:'Resort',emoji:'🌵',heroBg:'#2A1A0A',cats:{location:9.9,service:9.8,rooms:9.9,pool:9.5,food:8.8,value:7.2},good:['Location','Rooms','Service'],bad:['Very remote','Extremely expensive'],bookUrl:'https://booking.com/hotel/us/amangiri.html',friendsBeen:false,mapCoords:{x:55,y:100}},
+  {id:5,name:'Le Bristol Paris',loc:'Paris, France',addr:'112 Rue du Faubourg Saint-Honoré, Paris',type:'Hotel',emoji:'🗼',heroBg:'#1A1A3A',cats:{location:9.0,service:9.7,rooms:9.8,pool:8.0,food:9.6,value:6.0},good:['Food & dining','Rooms','Service'],bad:['Value for money','Location noise'],bookUrl:'https://booking.com/hotel/fr/le-bristol-paris.html',friendsBeen:false,mapCoords:{x:182,y:63}},
+  {id:6,name:'Four Seasons Maui',loc:'Wailea, Hawaii',addr:'3900 Wailea Alanui Dr, Wailea, HI',type:'Resort',emoji:'🌊',heroBg:'#1A3A5C',cats:{location:9.8,service:9.6,rooms:9.4,pool:9.7,food:9.0,value:7.0},good:['Pool & beach','Location','Service'],bad:['Value for money'],bookUrl:'https://booking.com/hotel/us/four-seasons-maui.html',friendsBeen:true,mapCoords:{x:30,y:200}},
+  {id:7,name:'Andaz Tokyo',loc:'Tokyo, Japan',addr:'1-23-4 Toranomon, Minato City, Tokyo',type:'Hotel',emoji:'🌏',heroBg:'#3A1A1A',cats:{location:9.2,service:8.8,rooms:8.6,pool:7.0,food:9.3,value:7.4},good:['Views','Food','Location'],bad:['Small pool','Expensive minibar'],bookUrl:'https://booking.com/hotel/jp/andaz-tokyo-toranomon-hills.html',friendsBeen:false,mapCoords:{x:328,y:95}},
+];
+
+const NEARBY_HOTELS = [
+  {id:1,emoji:'🏨',name:'The Setai Miami Beach',loc:'Miami Beach',score:9.2,dist:'0.3 mi',cats:[{l:'Location',v:9.5,c:'green'},{l:'Service',v:9.3,c:'green'},{l:'Value',v:6.2,c:'red'}],cx:143,cy:180,big:true,hotelId:1},
+  {id:2,emoji:'🏩',name:'W South Beach',loc:'Miami Beach',score:8.1,dist:'0.6 mi',cats:[{l:'Location',v:8.8,c:'green'},{l:'Rooms',v:8.0,c:'mid'},{l:'Value',v:6.8,c:'red'}],cx:258,cy:320,big:false,hotelId:2},
+  {id:3,emoji:'🏩',name:'Marriott Biscayne Bay',loc:'Downtown Miami',score:7.4,dist:'2.1 mi',cats:[{l:'Location',v:7.8,c:'mid'},{l:'Service',v:7.2,c:'mid'},{l:'Value',v:7.4,c:'mid'}],cx:50,cy:420,big:false,hotelId:null},
+  {id:4,emoji:'🏰',name:'Ritz-Carlton Coconut Grove',loc:'Coconut Grove',score:9.5,dist:'4.2 mi',cats:[{l:'Service',v:9.6,c:'green'},{l:'Rooms',v:9.4,c:'green'},{l:'Value',v:6.5,c:'red'}],cx:298,cy:165,big:false,hotelId:null},
+  {id:5,emoji:'🏨',name:'Grand Hyatt Brickell',loc:'Brickell, Miami',score:8.7,dist:'3.8 mi',cats:[{l:'Location',v:8.9,c:'green'},{l:'Rooms',v:8.5,c:'green'},{l:'Value',v:7.8,c:'mid'}],cx:148,cy:440,big:false,hotelId:3},
+];
+
+const FRIEND_RATINGS = {
+  1:[{initials:'AK',bg:'#6B8EAD',name:'Alex K.',date:'2 days ago',score:9.4},{initials:'MR',bg:'#8E6BAD',name:'Maya R.',date:'3 months ago',score:9.0},{initials:'TD',bg:'#6BAD8E',name:'Tyler D.',date:'6 months ago',score:9.1}],
+  2:[{initials:'MR',bg:'#8E6BAD',name:'Maya R.',date:'1 week ago',score:8.6},{initials:'TD',bg:'#6BAD8E',name:'Tyler D.',date:'2 months ago',score:8.2}],
+  3:[{initials:'TD',bg:'#6BAD8E',name:'Tyler D.',date:'3 days ago',score:9.7}],
+  4:[{initials:'AK',bg:'#6B8EAD',name:'Alex K.',date:'1 year ago',score:9.9}],
+  5:[],6:[{initials:'AK',bg:'#6B8EAD',name:'Alex K.',date:'5 months ago',score:9.5},{initials:'MR',bg:'#8E6BAD',name:'Maya R.',date:'8 months ago',score:9.8}],7:[],
+};
+
+const FEED_DATA = [
+  {hotelId:1,friend:{initials:'AK',bg:'#6B8EAD',name:'Alex K.',date:'2 days ago'}},
+  {hotelId:3,friend:{initials:'TD',bg:'#6BAD8E',name:'Tyler D.',date:'5 days ago'}},
+  {hotelId:2,friend:{initials:'MR',bg:'#8E6BAD',name:'Maya R.',date:'1 week ago'}},
+  {hotelId:6,friend:{initials:'AK',bg:'#6B8EAD',name:'Alex K.',date:'2 weeks ago'}},
+];
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let currentScreen = 'auth';
+let prevScreen = 'feed';
+let currentHotelId = 1;
+let currentNearbyHotelId = null;
+let logStep = 1;
+let logCats = {location:5,service:5,rooms:5,pool:5,food:5,value:5};
+let logHotelName = '';
+let myStays = JSON.parse(localStorage.getItem('lobby_stays') || '[]');
+let userName = localStorage.getItem('lobby_user') || '';
+let isSignup = true;
+let ppView = 'map';
+let discoverFilter = 'all';
+
+// ══════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════
+function toggleAuth(){
+  isSignup = !isSignup;
+  document.getElementById('auth-name-wrap').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('auth-submit').textContent = isSignup ? 'Create account' : 'Sign in';
+  document.getElementById('auth-switch').innerHTML = isSignup
+    ? 'Already have an account? <span>Sign in</span>'
+    : "Don't have an account? <span>Create one</span>";
+}
+
+function handleAuth(){
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  if(!email || !pass){ showToast('Please fill in all fields'); return; }
+  if(isSignup){
+    const name = document.getElementById('auth-name').value.trim();
+    if(!name){ showToast('Please enter your name'); return; }
+    userName = name;
+    localStorage.setItem('lobby_user', name);
+  } else {
+    userName = localStorage.getItem('lobby_user') || email.split('@')[0];
+  }
+  initApp();
+  navTo('feed');
+}
+
+// ══════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════
+function navTo(screen){
+  const old = document.getElementById('s-' + currentScreen);
+  const next = document.getElementById('s-' + screen);
+  if(!next || currentScreen === screen) return;
+  if(old) old.classList.remove('active');
+  next.classList.add('active');
+  prevScreen = currentScreen;
+  currentScreen = screen;
+  // close any slide cards
+  document.querySelectorAll('.slide-card').forEach(c=>c.classList.remove('open'));
+  // reset log if navigating to it
+  if(screen === 'log') resetLog();
+  if(screen === 'nearby') initNearby();
+  if(screen === 'passport' && ppView==='map' && !ppMapInitialized) setTimeout(()=>initPPWorldMap(myStays.length?myStays:[...getDefaultStays()]),200);
+}
+
+function goBack(){
+  navTo(prevScreen === 'auth' ? 'feed' : prevScreen);
+}
+
+// ══════════════════════════════════════
+// INIT APP
+// ══════════════════════════════════════
+function initApp(){
+  renderFeed();
+  renderDiscover();
+  renderPassport();
+  updateUserDisplay();
+}
+
+function updateUserDisplay(){
+  const initials = userName.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase() || 'ME';
+  document.getElementById('feed-avi').textContent = initials;
+  document.getElementById('pp-avi').textContent = initials;
+  document.getElementById('pp-name-el').textContent = userName || 'Traveler';
+  document.querySelectorAll('.avi').forEach(a=>{
+    if(!a.id || a.id==='feed-avi') a.textContent = initials;
+  });
+}
+
+// ══════════════════════════════════════
+// RENDER FEED
+// ══════════════════════════════════════
+function scoreColor(v){
+  if(v>=8.5) return 'hi';
+  if(v>=7.0) return 'mid';
+  return 'lo';
+}
+
+function avg(cats){
+  const vals = Object.values(cats);
+  return (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
+}
+
+function renderHotelCard(hotel, friend, onclick){
+  const score = avg(hotel.cats);
+  const catsHtml = CATS.map(k=>`
+    <div class="mini-cat">
+      <div class="mc-lbl">${CAT_LABELS[k]}</div>
+      <div class="mc-val ${scoreColor(hotel.cats[k])}">${hotel.cats[k].toFixed(1)}</div>
+    </div>`).join('');
+  const friendHtml = friend ? `
+    <div class="user-row">
+      <div class="axs" style="background:${friend.bg};color:#fff;">${friend.initials}</div>
+      <span style="font-size:12px;color:var(--ink-faint);">${friend.name} · ${friend.date}</span>
+    </div>` : '';
+  return `
+    <div class="fcard" onclick="${onclick}">
+      <div class="fcard-hero" style="background:${hotel.heroBg};">
+        <div class="hero-bg">${hotel.emoji}</div>
+        <div class="hero-grad"></div>
+        <div class="score-pill">${score}</div>
+        <div class="type-pill">${hotel.type}</div>
+        <div class="hero-info">
+          <div class="hero-name">${hotel.name}</div>
+          <div class="hero-loc">${hotel.loc}</div>
+        </div>
+      </div>
+      <div class="mini-cats">${catsHtml}</div>
+      <div class="fcard-footer">
+        ${friendHtml}
+        <span class="gold-link">View hotel ›</span>
+      </div>
+    </div>`;
+}
+
+function renderFeed(){
+  const el = document.getElementById('feed-content');
+  let html = `<div class="notice">
+    <div class="astack">
+      <div class="axs" style="background:#6B8EAD;color:#fff;">AK</div>
+      <div class="axs" style="background:#8E6BAD;color:#fff;">MR</div>
+      <div class="axs" style="background:#6BAD8E;color:#fff;">TD</div>
+    </div>
+    <span>3 friends logged stays this week</span>
+  </div>`;
+  FEED_DATA.forEach(f=>{
+    const hotel = HOTELS.find(h=>h.id===f.hotelId);
+    if(hotel) html += renderHotelCard(hotel, f.friend, `openHotel(${hotel.id})`);
+  });
+  // Add user's logged stays to feed
+  myStays.slice().reverse().forEach(s=>{
+    const hotel = HOTELS.find(h=>h.id===s.hotelId);
+    if(hotel){
+      const initials = userName.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase() || 'ME';
+      html += renderHotelCard(hotel, {initials, bg:'#B8953A', name:'You', date:'Just now'}, `openHotel(${hotel.id})`);
+    }
+  });
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════
+// HOTEL PROFILE
+// ══════════════════════════════════════
+function openHotel(id){
+  currentHotelId = id;
+  const h = HOTELS.find(x=>x.id===id);
+  if(!h) return;
+  // Get combined ratings (mock + user stays)
+  const userStay = myStays.find(s=>s.hotelId===id);
+  const cats = userStay ? averageCats(h.cats, userStay.cats) : h.cats;
+  const score = avg(cats);
+
+  document.getElementById('hotel-hero-wrap').style.background = h.heroBg;
+  document.getElementById('hotel-hero-emoji').textContent = h.emoji;
+  document.getElementById('hotel-score').textContent = score;
+  document.getElementById('hotel-name').textContent = h.name;
+  document.getElementById('hotel-loc').textContent = h.addr;
+  document.getElementById('hotel-type').textContent = h.type;
+  document.getElementById('hotel-book-btn').href = h.bookUrl;
+
+  // Category bars
+  const sortedCats = CATS.slice().sort((a,b)=>cats[b]-cats[a]);
+  document.getElementById('hotel-cats').innerHTML = sortedCats.map(k=>{
+    const v = cats[k];
+    const color = v>=8.5?'var(--green)':v>=7?'var(--amber)':'var(--red)';
+    return `<div class="cat-row">
+      <span class="cat-lbl">${CAT_LABELS[k]}</span>
+      <div class="cat-bar-wrap"><div class="cat-bar" style="width:${v*10}%;background:${color};"></div></div>
+      <div class="cat-num" style="color:${color};">${v.toFixed(1)}</div>
+    </div>`;
+  }).join('');
+
+  // Verdict
+  document.getElementById('hotel-verdict').innerHTML = `
+    <div class="verdict-card good">
+      <div class="verdict-head good">✓ Great for</div>
+      ${h.good.map(g=>`<div class="verdict-item">${g}</div>`).join('')}
+    </div>
+    <div class="verdict-card bad">
+      <div class="verdict-head bad">✗ Falls short</div>
+      ${h.bad.map(b=>`<div class="verdict-item">${b}</div>`).join('')}
+    </div>`;
+
+  // Friends
+  const friends = FRIEND_RATINGS[id] || [];
+  if(userStay){
+    const initials = userName.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    friends.unshift({initials,bg:'#B8953A',name:'You',date:'Recent',score:parseFloat(avg(userStay.cats))});
+  }
+  document.getElementById('hotel-friends').innerHTML = friends.length
+    ? friends.map(f=>`<div class="fr-row">
+        <div class="fr-left">
+          <div class="axs" style="background:${f.bg};color:#fff;width:28px;height:28px;font-size:10px;">${f.initials}</div>
+          <div><div class="fr-name">${f.name}</div><div class="fr-date">${f.date}</div></div>
+        </div>
+        <div class="fr-score">${typeof f.score==='number'?f.score.toFixed(1):f.score}</div>
+      </div>`).join('')
+    : '<div style="padding:14px 18px;font-size:13px;color:var(--ink-faint);">No friend ratings yet</div>';
+
+  navTo('hotel');
+}
+
+function averageCats(a, b){
+  const result = {};
+  CATS.forEach(k=> result[k] = ((a[k]||5) + (b[k]||5)) / 2);
+  return result;
+}
+
+function trackBooking(){
+  showToast('Opening booking page...');
+}
+
+// ══════════════════════════════════════
+// LOG FLOW
+// ══════════════════════════════════════
+function resetLog(){
+  logStep = 1;
+  logCats = {location:5,service:5,rooms:5,pool:5,food:5,value:5};
+  logHotelName = '';
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('log-s1').classList.add('active');
+  document.getElementById('log-title-el').textContent = 'Find hotel';
+  document.getElementById('log-step-lbl').textContent = '1 of 3';
+  document.getElementById('log-prog').style.width = '33%';
+  document.getElementById('log-back').textContent = '← Back';
+  document.getElementById('log-hotel-input').value = '';
+  document.getElementById('log-search-results').innerHTML = '';
+  document.getElementById('log-note').value = '';
+  document.querySelectorAll('#log-s2 input[type=range]').forEach(r=>r.value=5);
+  CATS.forEach(k=>{ document.getElementById('cv-'+k).textContent='5.0'; });
+  document.querySelectorAll('.tag-opt').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.type-opt').forEach((t,i)=>{ t.classList.toggle('on',i===0); });
+  updateLogAvg();
+
+  // Hotel search
+  document.getElementById('log-hotel-input').addEventListener('input', function(){
+    const q = this.value.toLowerCase();
+    if(q.length < 2){ document.getElementById('log-search-results').innerHTML=''; return; }
+    const matches = HOTELS.filter(h=>h.name.toLowerCase().includes(q)||h.loc.toLowerCase().includes(q));
+    document.getElementById('log-search-results').innerHTML = matches.length
+      ? `<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;">${
+          matches.map(h=>`<div onclick="selectLogHotel(${h.id})" style="padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:20px;">${h.emoji}</span>
+            <div><div style="font-size:13px;color:var(--navy);font-family:'Cormorant Garamond',serif;">${h.name}</div>
+            <div style="font-size:11px;color:var(--ink-faint);">${h.loc}</div></div>
+          </div>`).join('')
+        }</div>` : '';
+  });
+}
+
+function selectLogHotel(id){
+  const h = HOTELS.find(x=>x.id===id);
+  if(!h) return;
+  currentHotelId = id;
+  logHotelName = h.name;
+  document.getElementById('log-hotel-input').value = h.name;
+  document.getElementById('log-search-results').innerHTML = '';
+  showToast(`${h.emoji} ${h.name} selected`);
+}
+
+function logNext(){
+  if(logStep===1 && !document.getElementById('log-hotel-input').value.trim()){
+    showToast('Please search for a hotel first');
+    return;
+  }
+  logStep++;
+  const titles = ['','Find hotel','Rate categories','Add highlights'];
+  const progs = ['','33%','66%','100%'];
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('log-s'+logStep).classList.add('active');
+  document.getElementById('log-title-el').textContent = titles[logStep];
+  document.getElementById('log-step-lbl').textContent = logStep + ' of 3';
+  document.getElementById('log-prog').style.width = progs[logStep];
+  updateLogAvg();
+}
+
+function logBack(){
+  if(logStep > 1){
+    logStep--;
+    const titles = ['','Find hotel','Rate categories','Add highlights'];
+    const progs = ['','33%','66%','100%'];
+    document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+    document.getElementById('log-s'+logStep).classList.add('active');
+    document.getElementById('log-title-el').textContent = titles[logStep];
+    document.getElementById('log-step-lbl').textContent = logStep + ' of 3';
+    document.getElementById('log-prog').style.width = progs[logStep];
+  } else {
+    navTo(prevScreen==='auth'?'feed':prevScreen);
+  }
+}
+
+function updateCat(k, v){
+  logCats[k] = parseFloat(v);
+  document.getElementById('cv-'+k).textContent = parseFloat(v).toFixed(1);
+  updateLogAvg();
+}
+
+function updateLogAvg(){
+  const a = avg(logCats);
+  const el1 = document.getElementById('log-avg');
+  const el2 = document.getElementById('log-avg-final');
+  if(el1) el1.textContent = a;
+  if(el2) el2.textContent = a;
+}
+
+function saveStay(){
+  const hotelId = currentHotelId;
+  const note = document.getElementById('log-note').value;
+  const tags = Array.from(document.querySelectorAll('.tag-opt.on')).map(t=>t.textContent);
+  const stay = { hotelId, cats:{...logCats}, avg:parseFloat(avg(logCats)), note, tags, date: new Date().toISOString() };
+  // Remove old entry for same hotel if exists
+  myStays = myStays.filter(s=>s.hotelId!==hotelId);
+  myStays.push(stay);
+  localStorage.setItem('lobby_stays', JSON.stringify(myStays));
+  renderFeed();
+  renderPassport();
+  showToast('Stay saved to your Passport ✓');
+  setTimeout(()=>navTo('passport'), 800);
+}
+
+function selType(el){
+  el.closest('.type-grid').querySelectorAll('.type-opt').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+}
+
+// ══════════════════════════════════════
+// NEARBY — Real geolocation + Google Places API
+// ══════════════════════════════════════
+
+// Paste your Google Places API key here when you have one:
+const GOOGLE_PLACES_API_KEY = 'AIzaSyC9CfMWNh4RZh64XDnUKpyMthdP0tP7vE0'; // e.g. 'AIzaSy...'
+
+let userLat = null, userLng = null;
+let nearbyMap = null, nearbyMapZoom = 15;
+let selectedNearby = null;
+let nearbyResults = [];
+
+function initNearby(){
+  const loading = document.getElementById('nearby-loading');
+  const errEl = document.getElementById('nearby-error');
+  if(loading) loading.style.display = 'flex';
+  if(errEl) errEl.style.display = 'none';
+
+  if(!navigator.geolocation){
+    showNearbyError('Geolocation not supported by your browser');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      if(loading) loading.style.display = 'none';
+      renderNearbyMap();
+      if(GOOGLE_PLACES_API_KEY){
+        fetchNearbyHotels();
+      } else {
+        renderNearbyWithMockData();
+      }
+    },
+    err => {
+      showNearbyError('Location access denied. Please enable location in browser settings.');
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function showNearbyError(msg){
+  const loading = document.getElementById('nearby-loading');
+  const errEl = document.getElementById('nearby-error');
+  if(loading) loading.style.display = 'none';
+  if(errEl){
+    errEl.style.display = 'flex';
+    const msgEl = errEl.querySelector('div:nth-child(3)');
+    if(msgEl) msgEl.textContent = msg;
+  }
+}
+
+function renderNearbyMap(){
+  const container = document.getElementById('nearby-map');
+  if(!container || !userLat) return;
+
+  // Build a simple tile-based map using OpenStreetMap tiles
+  const w = container.offsetWidth || 390;
+  const h = container.offsetHeight || 500;
+
+  container.innerHTML = `
+    <div id="osm-map" style="width:100%;height:100%;position:relative;overflow:hidden;background:#C8D8E8;">
+      <canvas id="map-canvas" width="${w}" height="${h}" style="position:absolute;top:0;left:0;"></canvas>
+      <div id="map-tiles" style="position:absolute;inset:0;overflow:hidden;"></div>
+      <div id="you-marker" style="position:absolute;width:20px;height:20px;transform:translate(-50%,-50%);left:50%;top:50%;z-index:10;pointer-events:none;">
+        <div style="width:20px;height:20px;border-radius:50%;background:var(--navy);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>
+        <div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:500;color:var(--navy);white-space:nowrap;background:white;padding:2px 6px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.2);">You</div>
+      </div>
+    </div>`;
+  
+  drawOSMTiles();
+}
+
+// Convert lat/lng to tile x,y
+function latLngToTile(lat, lng, zoom){
+  const n = Math.pow(2, zoom);
+  const x = Math.floor((lng + 180) / 360 * n);
+  const latRad = lat * Math.PI / 180;
+  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad)) / Math.PI) / 2 * n);
+  return {x, y};
+}
+
+// Convert lat/lng to pixel position relative to center
+function latLngToPixel(lat, lng, centerLat, centerLng, zoom, w, h){
+  const scale = Math.pow(2, zoom) * 256;
+  const x1 = (centerLng + 180) / 360 * scale;
+  const latRad1 = centerLat * Math.PI / 180;
+  const y1 = (1 - Math.log(Math.tan(latRad1) + 1/Math.cos(latRad1)) / Math.PI) / 2 * scale;
+  const x2 = (lng + 180) / 360 * scale;
+  const latRad2 = lat * Math.PI / 180;
+  const y2 = (1 - Math.log(Math.tan(latRad2) + 1/Math.cos(latRad2)) / Math.PI) / 2 * scale;
+  return { x: w/2 + (x2 - x1), y: h/2 + (y2 - y1) };
+}
+
+function drawOSMTiles(){
+  const container = document.getElementById('map-tiles');
+  if(!container || !userLat) return;
+  const w = container.offsetWidth || 390;
+  const h = container.offsetHeight || 500;
+  const zoom = nearbyMapZoom;
+  const center = latLngToTile(userLat, userLng, zoom);
+  const tileSize = 256;
+  const tilesX = Math.ceil(w / tileSize) + 2;
+  const tilesY = Math.ceil(h / tileSize) + 2;
+
+  // Pixel offset of center tile
+  const scale = Math.pow(2, zoom) * tileSize;
+  const cxPx = (userLng + 180) / 360 * scale;
+  const latRad = userLat * Math.PI / 180;
+  const cyPx = (1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad)) / Math.PI) / 2 * scale;
+  const startX = Math.floor(cxPx / tileSize) - Math.floor(tilesX/2);
+  const startY = Math.floor(cyPx / tileSize) - Math.floor(tilesY/2);
+  const offsetX = w/2 - (cxPx - startX * tileSize);
+  const offsetY = h/2 - (cyPx - startY * tileSize);
+
+  let html = '';
+  for(let tx = 0; tx < tilesX; tx++){
+    for(let ty = 0; ty < tilesY; ty++){
+      const tileX = startX + tx;
+      const tileY = startY + ty;
+      const left = offsetX + tx * tileSize;
+      const top = offsetY + ty * tileSize;
+      // Use OpenStreetMap tile server
+      const url = `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+      html += `<img src="${url}" style="position:absolute;left:${left}px;top:${top}px;width:${tileSize}px;height:${tileSize}px;" crossorigin="anonymous" onerror="this.style.opacity=0.5"/>`;
+    }
+  }
+  container.innerHTML = html;
+}
+
+async function fetchNearbyHotels(){
+  if(!userLat || !GOOGLE_PLACES_API_KEY) return;
+  try {
+    // NOTE: In production this call should go through your backend to protect the API key
+    // For now we use the Places API directly (works for development/demo)
+    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${userLat},${userLng}&radius=2000&type=lodging&key=${GOOGLE_PLACES_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if(data.results){
+      nearbyResults = data.results.map(p=>({
+        id: p.place_id,
+        name: p.name,
+        loc: p.vicinity,
+        lat: p.geometry.location.lat,
+        lng: p.geometry.location.lng,
+        rating: p.rating || null,
+        userRatingsTotal: p.user_ratings_total || 0,
+        photo: p.photos?.[0]?.photo_reference || null,
+        emoji: '🏨',
+        cats: null, // No Lobby ratings yet
+        dist: calcDist(userLat, userLng, p.geometry.location.lat, p.geometry.location.lng),
+      }));
+      renderNearbyPinsOnMap();
+    }
+  } catch(e) {
+    console.error('Places API error:', e);
+    renderNearbyWithMockData();
+  }
+}
+
+function renderNearbyWithMockData(){
+  // When no API key, show mock hotels offset from user location
+  const offsets = [
+    {dlat:0.003, dlng:0.004, id:1, hotelId:1},
+    {dlat:-0.005, dlng:0.006, id:2, hotelId:2},
+    {dlat:0.007, dlng:-0.003, id:3, hotelId:3},
+    {dlat:-0.002, dlng:-0.007, id:4, hotelId:null},
+    {dlat:0.009, dlng:0.002, id:5, hotelId:null},
+  ];
+  if(!userLat) return;
+  nearbyResults = NEARBY_HOTELS.map((h,i)=>({
+    ...h,
+    lat: userLat + (offsets[i]?.dlat||0),
+    lng: userLng + (offsets[i]?.dlng||0),
+    dist: h.dist,
+    hotelId: h.hotelId,
+    placeId: null,
+    lobbyData: h,
+  }));
+  renderNearbyPinsOnMap();
+}
+
+function calcDist(lat1, lng1, lat2, lng2){
+  const R = 3959; // miles
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1) + ' mi';
+}
+
+function renderNearbyPinsOnMap(){
+  const container = document.getElementById('nearby-map');
+  if(!container || !userLat) return;
+  const w = container.offsetWidth || 390;
+  const h = container.offsetHeight || 500;
+
+  // Remove old pin overlays
+  document.querySelectorAll('.nearby-hotel-pin').forEach(p=>p.remove());
+  const pinsLayer = document.getElementById('nearby-pins-layer');
+  if(!pinsLayer) return;
+  pinsLayer.style.pointerEvents = 'all';
+  pinsLayer.innerHTML = '';
+
+  nearbyResults.forEach((hotel, i)=>{
+    const px = latLngToPixel(hotel.lat, hotel.lng, userLat, userLng, nearbyMapZoom, w, h);
+    const lobbyData = hotel.lobbyData;
+    const score = lobbyData ? lobbyData.score.toFixed(1) : (hotel.rating ? hotel.rating.toFixed(1) : '?');
+    const isTop = i === 0;
+    const size = isTop ? 52 : 46;
+
+    const pin = document.createElement('div');
+    pin.className = 'nearby-hotel-pin';
+    pin.style.cssText = `position:absolute;left:${px.x}px;top:${px.y}px;transform:translate(-50%,-100%);cursor:pointer;z-index:5;`;
+    pin.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div style="width:${size}px;height:${size}px;border-radius:50%;border:${isTop?3:2}px solid #B8953A;background:${isTop?'var(--navy)':'white'};display:flex;align-items:center;justify-content:center;font-size:${isTop?22:18}px;box-shadow:0 3px 10px rgba(0,0,0,0.25);">
+          ${hotel.emoji || '🏨'}
+        </div>
+        <div style="background:#B8953A;border-radius:20px;padding:2px 8px;margin-top:2px;font-size:${isTop?10:9}px;font-family:'Cormorant Garamond',serif;font-weight:600;color:#0D1B2A;white-space:nowrap;">
+          ${score}${isTop?' ★':''}
+        </div>
+        <div style="width:2px;height:8px;background:#B8953A;margin:0 auto;"></div>
+      </div>`;
+    pin.onclick = ()=>showNearby(hotel.id || i);
+    pinsLayer.appendChild(pin);
+  });
+}
+
+function showNearby(id){
+  selectedNearby = id;
+  const h = nearbyResults.find(x=>(x.id||nearbyResults.indexOf(x))===id) || nearbyResults[id] || nearbyResults[0];
+  if(!h) return;
+  const lobbyData = h.lobbyData;
+  document.getElementById('ns-emoji').textContent = h.emoji || '🏨';
+  document.getElementById('ns-name').textContent = h.name;
+  document.getElementById('ns-loc').textContent = h.loc || h.vicinity || '';
+  document.getElementById('ns-score').textContent = lobbyData ? lobbyData.score.toFixed(1) : (h.rating?.toFixed(1) || '—');
+  document.getElementById('ns-dist').textContent = h.dist || '—';
+  if(lobbyData){
+    document.getElementById('ns-cats').innerHTML = lobbyData.cats.map(c=>`
+      <div class="sl-cat">
+        <div class="sl-cat-l">${c.l}</div>
+        <div class="sl-cat-v" style="color:${c.c==='green'?'var(--green)':c.c==='red'?'var(--red)':'var(--amber)'};">${c.v.toFixed(1)}</div>
+      </div>`).join('');
+  } else {
+    // Show Google rating if no Lobby data yet
+    document.getElementById('ns-cats').innerHTML = `
+      <div class="sl-cat" style="grid-column:1/-1;text-align:left;">
+        <div style="font-size:11px;color:var(--ink-faint);">Google rating</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold);">${h.rating || '—'} <span style="font-size:12px;color:var(--ink-faint);">(${h.userRatingsTotal?.toLocaleString()} reviews)</span></div>
+        <div style="font-size:11px;color:var(--ink-mid);margin-top:4px;">No Lobby ratings yet — be the first to log this hotel!</div>
+      </div>`;
+  }
+  document.getElementById('ns-view-btn').textContent = lobbyData?.hotelId ? 'View hotel profile →' : 'Log this hotel →';
+  document.getElementById('nearby-slide').classList.add('open');
+}
+
+function openNearbyHotel(){
+  const h = nearbyResults.find(x=>(x.id||nearbyResults.indexOf(x))===selectedNearby) || nearbyResults[selectedNearby] || nearbyResults[0];
+  if(!h) return;
+  if(h.lobbyData?.hotelId){
+    openHotel(h.lobbyData.hotelId);
+  } else {
+    // Pre-fill log with this hotel name
+    navTo('log');
+    setTimeout(()=>{
+      const input = document.getElementById('log-hotel-input');
+      if(input){ input.value = h.name; input.dispatchEvent(new Event('input')); }
+    }, 400);
+  }
+}
+
+// ══════════════════════════════════════
+// DISCOVER
+// ══════════════════════════════════════
+function renderDiscover(){
+  const el = document.getElementById('discover-content');
+  let hotels = HOTELS.slice();
+  const q = document.getElementById('disc-search')?.value?.toLowerCase() || '';
+  if(q) hotels = hotels.filter(h=>h.name.toLowerCase().includes(q)||h.loc.toLowerCase().includes(q));
+  if(discoverFilter==='hotel') hotels = hotels.filter(h=>h.type==='Hotel');
+  if(discoverFilter==='resort') hotels = hotels.filter(h=>h.type==='Resort');
+  if(discoverFilter==='boutique') hotels = hotels.filter(h=>h.type==='Boutique');
+  if(discoverFilter==='friends') hotels = hotels.filter(h=>h.friendsBeen);
+  hotels.sort((a,b)=>parseFloat(avg(b.cats))-parseFloat(avg(a.cats)));
+  el.innerHTML = hotels.map(h=>renderHotelCard(h,null,`openHotel(${h.id})`)).join('');
+}
+
+function filterDiscover(q){ renderDiscover(); }
+
+function filterCat(el, cat){
+  document.querySelectorAll('.fc').forEach(f=>f.classList.remove('on'));
+  el.classList.add('on');
+  discoverFilter = cat;
+  renderDiscover();
+}
+
+// ══════════════════════════════════════
+// PASSPORT
+// ══════════════════════════════════════
+const TIER_INFO = [
+  {name:'Bronze',emoji:'🥉',min:0,max:5},
+  {name:'Silver',emoji:'🥈',min:5,max:15},
+  {name:'Gold',emoji:'🥇',min:15,max:30},
+  {name:'Elite',emoji:'💎',min:30,max:Infinity},
+];
+
+function getTier(stays){
+  return TIER_INFO.find(t=>stays>=t.min&&stays<t.max) || TIER_INFO[0];
+}
+
+function renderPassport(){
+  const stays = myStays.length;
+  const tier = getTier(stays);
+  const nextTier = TIER_INFO[TIER_INFO.indexOf(tier)+1];
+  const progress = nextTier ? ((stays-tier.min)/(tier.max-tier.min)*100)+'%' : '100%';
+
+  document.getElementById('pp-stays').textContent = stays;
+  document.getElementById('pp-tier').textContent = `${tier.emoji} ${tier.name} Traveler`;
+  document.getElementById('tier-name-big').textContent = tier.name;
+  document.getElementById('tier-emoji-big').textContent = tier.emoji;
+  document.getElementById('tier-prog-fill').style.width = progress;
+
+  const countries = [...new Set(myStays.map(s=>{ const h=HOTELS.find(x=>x.id===s.hotelId); return h?.loc.split(', ').pop(); }).filter(Boolean))];
+  const continents = new Set();
+  countries.forEach(c=>{
+    if(['Florida','New York','Utah','Hawaii'].includes(c)) continents.add('North America');
+    if(['France'].includes(c)) continents.add('Europe');
+    if(['Japan'].includes(c)) continents.add('Asia');
+  });
+  // Add defaults
+  continents.add('North America');
+  document.getElementById('pp-countries').textContent = Math.max(countries.length, 4);
+  document.getElementById('pp-continents').textContent = continents.size;
+
+  if(nextTier){
+    document.getElementById('tier-sub-text').textContent = `${tier.max - stays} more stays to reach ${nextTier.name}`;
+  } else {
+    document.getElementById('tier-sub-text').textContent = 'Maximum tier reached!';
+  }
+
+  // Ranked list
+  const allStays = [...myStays.map(s=>({...s,fromUser:true}))];
+  // Add demo stays if none
+  if(myStays.length===0){
+    [1,3,6,2,5,7].forEach((id,i)=>{
+      const h=HOTELS.find(x=>x.id===id);
+      allStays.push({hotelId:id,cats:h.cats,avg:parseFloat(avg(h.cats)),fromUser:false});
+    });
+  }
+  allStays.sort((a,b)=>b.avg-a.avg);
+  document.getElementById('ranked-list').innerHTML = allStays.map((s,i)=>{
+    const h=HOTELS.find(x=>x.id===s.hotelId);
+    if(!h) return '';
+    return `<div class="rrow" onclick="openHotel(${h.id})">
+      <span class="rnum ${i<3?'top':''}">${i+1}</span>
+      <div class="remoji">${h.emoji}</div>
+      <div class="rinfo"><div class="rname">${h.name}</div><div class="rloc">${h.loc}</div></div>
+      <div class="rscore">${s.avg.toFixed(1)}</div>
+    </div>`;
+  }).join('');
+
+  // Profile avg cats
+  const catAvgs = {};
+  CATS.forEach(k=>catAvgs[k]=[]);
+  allStays.forEach(s=>{ CATS.forEach(k=>{ if(s.cats[k]) catAvgs[k].push(s.cats[k]); }); });
+  document.getElementById('profile-avg-cats').innerHTML = CATS.map(k=>{
+    const vals = catAvgs[k];
+    const a = vals.length ? (vals.reduce((x,y)=>x+y,0)/vals.length).toFixed(1) : '—';
+    const pct = vals.length ? (parseFloat(a)*10)+'%' : '0%';
+    const color = parseFloat(a)>=8.5?'var(--green)':parseFloat(a)>=7?'var(--amber)':'var(--red)';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;color:var(--ink-mid);">${CAT_LABELS[k]}</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:80px;height:5px;background:var(--border);border-radius:3px;">
+          <div style="width:${pct};height:5px;background:${color};border-radius:3px;"></div>
+        </div>
+        <span style="font-family:'Cormorant Garamond',serif;font-size:17px;color:var(--navy);">${a}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Countries
+  const allCountries = [{flag:'🇺🇸',name:'USA'},{flag:'🇫🇷',name:'France'},{flag:'🇯🇵',name:'Japan'},{flag:'🇲🇽',name:'Mexico'},{flag:'🇮🇹',name:'Italy'},{flag:'🇧🇸',name:'Bahamas'}];
+  document.getElementById('pp-countries-list').innerHTML = allCountries.map(c=>`
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:12px;color:var(--navy);">${c.flag} ${c.name}</div>`).join('');
+
+  // Map pins
+  // Initialize or re-render world map
+  if(ppMapInitialized){
+    renderPPPins(allStays);
+  } else {
+    setTimeout(()=>initPPWorldMap(allStays), 100);
+  }
+}
+
+// Geo coordinates for each hotel (lat/lng)
+const HOTEL_COORDS = {
+  1: {lat:25.7767, lng:-80.1300},  // Miami Beach
+  2: {lat:26.6865, lng:-80.0362},  // Palm Beach
+  3: {lat:40.7649, lng:-73.9797},  // New York
+  4: {lat:37.1775, lng:-111.4130}, // Utah
+  5: {lat:48.8738, lng:2.3121},    // Paris
+  6: {lat:20.6929, lng:-156.4449}, // Maui
+  7: {lat:35.6659, lng:139.7492},  // Tokyo
+};
+
+let ppProjection = null;
+let ppMapInitialized = false;
+
+function initPPWorldMap(stays){
+  const container = document.getElementById('pp-world-map');
+  if(!container) return;
+  const w = container.offsetWidth || 390;
+  const h = container.offsetHeight || 280;
+
+  // Clear
+  container.innerHTML = '';
+  d3.select('#pp-pins').selectAll('*').remove();
+
+  // Create SVG for the map background
+  const svg = d3.select(container)
+    .append('svg')
+    .attr('width', w)
+    .attr('height', h)
+    .style('position','absolute')
+    .style('top','0')
+    .style('left','0');
+
+  // Ocean background
+  svg.append('rect').attr('width',w).attr('height',h).attr('fill','#B8CDD8');
+
+  // Graticule lines
+  ppProjection = d3.geoNaturalEarth1()
+    .scale((w / 6.3))
+    .translate([w/2, h/2]);
+
+  const path = d3.geoPath().projection(ppProjection);
+
+  // Graticule
+  const graticule = d3.geoGraticule().step([30,30]);
+  svg.append('path')
+    .datum(graticule())
+    .attr('d', path)
+    .attr('fill','none')
+    .attr('stroke','rgba(255,255,255,0.12)')
+    .attr('stroke-width',0.5);
+
+  // Load world topojson
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+    .then(r=>r.json())
+    .then(world=>{
+      const countries = topojson.feature(world, world.objects.countries);
+      svg.selectAll('.country')
+        .data(countries.features)
+        .enter()
+        .append('path')
+        .attr('class','country')
+        .attr('d', path)
+        .attr('fill','#C8D8B8')
+        .attr('stroke','#A8C098')
+        .attr('stroke-width',0.5);
+
+      ppMapInitialized = true;
+      renderPPPins(stays);
+    })
+    .catch(()=>{
+      // Fallback: simple continent shapes if CDN fails
+      svg.append('text').attr('x',w/2).attr('y',h/2).attr('text-anchor','middle')
+        .attr('fill','var(--ink-faint)').attr('font-size',12).text('Map unavailable offline');
+      renderPPPins(stays);
+    });
+}
+
+function renderPPPins(stays){
+  if(!ppProjection){
+    // Map not ready yet, will be called again after init
+    return;
+  }
+  const container = document.getElementById('pp-world-map');
+  const w = container?.offsetWidth || 390;
+  const h = container?.offsetHeight || 280;
+
+  // Use the overlay SVG for pins
+  const pinsSvg = d3.select('#pp-pins-svg');
+  pinsSvg.attr('width', w).attr('height', h);
+  const pinsEl = document.getElementById('pp-pins');
+  pinsEl.innerHTML = '';
+
+  const sorted = stays.slice().sort((a,b)=>b.avg-a.avg);
+
+  stays.forEach((s,i)=>{
+    const h=HOTELS.find(x=>x.id===s.hotelId);
+    const coords = HOTEL_COORDS[s.hotelId];
+    if(!h || !coords) return;
+    const px = ppProjection([coords.lng, coords.lat]);
+    if(!px) return;
+    const [cx, cy] = px;
+    const isTop = sorted[0]?.hotelId === s.hotelId;
+    const r = isTop ? 24 : 20;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('style','cursor:pointer;');
+    g.setAttribute('transform',`translate(${cx},${cy})`);
+    g.onclick = ()=>showPPPin(s,h,sorted.findIndex(x=>x.hotelId===s.hotelId)+1);
+    g.innerHTML = `
+      <polygon points="0,${r+5} ${-(r*0.28)},${r-2} ${r*0.28},${r-2}" fill="${isTop?'var(--navy)':'white'}"/>
+      <circle r="${r}" fill="${isTop?'var(--navy)':'white'}"/>
+      <circle r="${r-2}" fill="${h.heroBg}"/>
+      <text x="0" y="5" text-anchor="middle" font-size="${isTop?15:13}" fill="white">${h.emoji}</text>
+      <circle r="${r}" fill="none" stroke="#B8953A" stroke-width="${isTop?3:2}"/>
+      <rect x="${-(isTop?15:12)}" y="${r+1}" width="${isTop?30:24}" height="13" rx="6.5" fill="#B8953A"/>
+      <text x="0" y="${r+10.5}" text-anchor="middle" font-family="'Cormorant Garamond',serif" font-size="${isTop?9.5:8}" font-weight="600" fill="#0D1B2A">${s.avg.toFixed(1)}${isTop?' ★':''}</text>`;
+    pinsEl.appendChild(g);
+  });
+}
+
+let ppCurrentHotel = null;
+function showPPPin(stay, hotel, rank){
+  ppCurrentHotel = hotel.id;
+  document.getElementById('pp-s-emoji').textContent = hotel.emoji;
+  document.getElementById('pp-s-name').textContent = hotel.name;
+  document.getElementById('pp-s-loc').textContent = hotel.loc;
+  document.getElementById('pp-s-score').textContent = stay.avg.toFixed(1);
+  document.getElementById('pp-s-rank').textContent = `#${rank} stay`;
+  const top3 = CATS.slice().sort((a,b)=>stay.cats[b]-stay.cats[a]).slice(0,3);
+  document.getElementById('pp-s-cats').innerHTML = top3.map(k=>{
+    const v = stay.cats[k];
+    const color = v>=8.5?'var(--green)':v>=7?'var(--amber)':'var(--red)';
+    return `<div class="sl-cat"><div class="sl-cat-l">${CAT_LABELS[k]}</div><div class="sl-cat-v" style="color:${color};">${v.toFixed(1)}</div></div>`;
+  }).join('');
+  document.getElementById('pp-slide').classList.add('open');
+}
+
+function openHotelFromPP(){
+  if(ppCurrentHotel) openHotel(ppCurrentHotel);
+}
+
+function showPPView(v){
+  ppView = v;
+  ['map','ranked','profile'].forEach(id=>{
+    const el=document.getElementById('pv-'+id);
+    if(el) el.style.display='none';
+    document.getElementById('vt-'+id)?.classList.remove('active');
+  });
+  const show=document.getElementById('pv-'+v);
+  if(show){show.style.display='flex';show.style.flexDirection='column';}
+  document.getElementById('vt-'+v)?.classList.add('active');
+  if(v!=='map') document.getElementById('pp-slide')?.classList.remove('open');
+  if(v==='map'){
+    const stays = myStays.length ? myStays : getDefaultStays();
+    setTimeout(()=>initPPWorldMap(stays), 50);
+  }
+}
+
+// ══════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════
+let toastTimeout;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+function getDefaultStays(){
+  return [1,3,6,2,5,7].map(id=>{
+    const h=HOTELS.find(x=>x.id===id);
+    return {hotelId:id,cats:h.cats,avg:parseFloat(avg(h.cats)),fromUser:false};
+  });
+}
+
+// If already logged in, skip auth
+if(localStorage.getItem('lobby_user')){
+  userName = localStorage.getItem('lobby_user');
+  initApp();
+  navTo('feed');
+}
+</script>
+</body>
+</html>
